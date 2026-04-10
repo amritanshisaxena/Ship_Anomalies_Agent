@@ -3,75 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FulfillAI — Fulfillment Operations Intelligence</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <title>FulfillAI — Operations</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background: #0f1117; font-family: 'Inter', system-ui, sans-serif; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-
-    @keyframes pulse-ring {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.6); }
-      50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
-    }
-    .pulse-ring { animation: pulse-ring 1.5s ease-in-out infinite; }
-
-    @keyframes fade-in-up {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .fade-in-up { animation: fade-in-up 0.4s ease forwards; }
-
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-    .cursor { display:inline-block; width:2px; height:1em; background:#3b82f6;
-              vertical-align:text-bottom; animation:blink 1s step-end infinite; }
-
+    @keyframes fade-in-up { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in-up { animation: fade-in-up 0.3s ease forwards; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spin { animation: spin 1s linear infinite; }
+    @keyframes pulse-ring { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,0.5);} 50%{box-shadow:0 0 0 6px rgba(59,130,246,0);} }
+    .pulse-ring { animation: pulse-ring 1.5s ease-in-out infinite; }
 
-    @keyframes slide-up {
-      from { opacity:0; transform:translateY(40px) scale(0.95); }
-      to   { opacity:1; transform:translateY(0)  scale(1); }
-    }
-    .slide-up { animation: slide-up 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-
-    .chat-bubble-agent { background: #1e2130; border-radius: 4px 18px 18px 18px; }
-    .chat-bubble-user  { background: #2563eb; border-radius: 18px 4px 18px 18px; }
-
-    .tab-btn { position:relative; padding: 8px 20px; font-weight:600; font-size:0.9rem;
-               transition: color 0.2s; }
-    .tab-btn::after { content:''; position:absolute; bottom:-1px; left:0; right:0;
-                      height:2px; background:#3b82f6; border-radius:2px;
-                      transform: scaleX(0); transition: transform 0.2s; }
+    .tab-btn { position:relative; padding:8px 18px; font-weight:600; font-size:0.82rem; transition:color 0.2s; white-space:nowrap; }
+    .tab-btn::after { content:''; position:absolute; bottom:-1px; left:0; right:0; height:2px; background:#3b82f6; border-radius:2px; transform:scaleX(0); transition:transform 0.2s; }
     .tab-btn.active { color:#fff; }
-    .tab-btn.active::after { transform: scaleX(1); }
+    .tab-btn.active::after { transform:scaleX(1); }
     .tab-btn:not(.active) { color:#6b7280; }
+    .tab-btn:not(.active):hover { color:#9ca3af; }
 
-    .order-card { background:#161b27; border:1px solid #1f2937;
-                  border-radius:12px; overflow:hidden; }
-    .order-card:hover { border-color:#374151; }
+    .card { background:#161b27; border:1px solid #1f2937; border-radius:12px; overflow:hidden; transition:border-color 0.2s; }
+    .card:hover { border-color:#374151; }
 
-    .severity-HIGH   { background:#7f1d1d; color:#fca5a5; border:1px solid #991b1b; }
-    .severity-MEDIUM { background:#78350f; color:#fcd34d; border:1px solid #92400e; }
-    .severity-LOW    { background:#14532d; color:#86efac; border:1px solid #166534; }
-    .severity-OK     { background:#14532d; color:#86efac; border:1px solid #166534; }
+    .status-badge { font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:9999px; }
+    .st-pending { background:#1e3a5f; color:#93c5fd; }
+    .st-queued { background:#312e81; color:#a5b4fc; }
+    .st-picking { background:#4c1d95; color:#c4b5fd; }
+    .st-packing { background:#581c87; color:#d8b4fe; }
+    .st-shipped { background:#134e4a; color:#5eead4; }
+    .st-in_transit { background:#164e63; color:#67e8f9; }
+    .st-delivered { background:#14532d; color:#86efac; }
+    .st-exception { background:#7f1d1d; color:#fca5a5; }
+    .st-on_hold { background:#78350f; color:#fcd34d; }
+    .st-backorder { background:#78350f; color:#fcd34d; }
 
-    .status-Exception { background:#7f1d1d; color:#fca5a5; }
-    .status-OnHold    { background:#78350f; color:#fcd34d; }
-    .status-Processing{ background:#1e3a5f; color:#93c5fd; }
-    .status-Completed { background:#14532d; color:#86efac; }
+    .tier-standard { color:#9ca3af; }
+    .tier-express { color:#f59e0b; }
+    .tier-overnight { color:#ef4444; }
 
-    .glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+    .glow-blue { box-shadow: 0 0 15px rgba(59,130,246,0.25); }
 
-    @keyframes success-pop {
-      0%   { transform: scale(0.5); opacity:0; }
-      60%  { transform: scale(1.1); }
-      100% { transform: scale(1);   opacity:1; }
-    }
-    .success-pop { animation: success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    /* Action type colors for activity log */
+    .at-availability_check { color:#60a5fa; }
+    .at-fc_selection { color:#22d3ee; }
+    .at-shipping_calc { color:#34d399; }
+    .at-priority { color:#a78bfa; }
+    .at-edge_case { color:#f87171; }
+    .at-finalize { color:#fbbf24; }
+    .at-queue_advance { color:#818cf8; }
   </style>
 </head>
 <body>
@@ -79,560 +62,1090 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-// ─── Stepper ────────────────────────────────────────────────────────────────
-const STEPS = [
-  { id: 1, label: "Store Info" },
-  { id: 2, label: "Products" },
-  { id: 3, label: "Inventory" },
-  { id: 4, label: "Shipping" },
-  { id: 5, label: "Go Live" },
-];
-
-function detectStep(messages) {
-  const agentText = messages
-    .filter(m => m.role === "assistant")
-    .map(m => m.content.toLowerCase())
-    .join(" ");
-
-  if (agentText.includes("onboarding_complete") || agentText.includes("you're all set")) return 6;
-  if (agentText.includes("shipping") || agentText.includes("carrier") || agentText.includes("ups") || agentText.includes("fedex")) return 5;
-  if (agentText.includes("warehouse") || agentText.includes("east coast") || agentText.includes("west coast") || agentText.includes("central") || agentText.includes("monthly unit")) return 4;
-  if (agentText.includes("sku") || agentText.includes("product categor") || agentText.includes("average order") || agentText.includes("how many")) return 3;
-  if (agentText.includes("platform") || agentText.includes("shopify") || agentText.includes("store url") || agentText.includes("brand name") || agentText.includes("woocommerce")) return 2;
-  return 1;
-}
-
-function Stepper({ currentStep }) {
-  return (
-    <div className="flex flex-col gap-4">
-      {STEPS.map(step => {
-        const done = currentStep > step.id;
-        const active = currentStep === step.id;
-        return (
-          <div key={step.id} className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all duration-300
-              ${done   ? "bg-blue-600 text-white" :
-                active ? "bg-blue-600 text-white pulse-ring" :
-                         "bg-gray-700 text-gray-400"}`}>
-              {done ? "✓" : step.id}
-            </div>
-            <span className={`text-sm font-medium transition-colors duration-300
-              ${done ? "text-blue-400" : active ? "text-white" : "text-gray-500"}`}>
-              {step.label}
-            </span>
+// Catches render-time errors in any child view so a single component
+// crash doesn't blank the whole app. Shows the error + stack inline
+// instead of unmounting to a dark void.
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null, info: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) {
+    console.error("[ErrorBoundary]", error, info);
+    this.setState({ info });
+  }
+  reset = () => this.setState({ error: null, info: null });
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-6 max-w-3xl mx-auto">
+          <div className="card p-5 border-red-800 bg-red-900/20">
+            <h2 className="text-lg font-bold text-red-300 mb-2">⚠ Something broke while rendering</h2>
+            <p className="text-xs text-red-400 mb-3">A view crashed. Copy the error below and share it so it can be fixed. The rest of the app is still working — click Reset to continue.</p>
+            <pre className="text-xs text-red-200 bg-black/40 p-3 rounded overflow-auto max-h-48 whitespace-pre-wrap">{String(this.state.error?.stack || this.state.error)}</pre>
+            {this.state.info?.componentStack && (
+              <pre className="text-xs text-red-300/80 bg-black/30 p-3 rounded overflow-auto max-h-48 mt-2 whitespace-pre-wrap">{this.state.info.componentStack}</pre>
+            )}
+            <button onClick={this.reset} className="mt-3 bg-red-700 hover:bg-red-600 text-white text-sm px-4 py-2 rounded">Reset view</button>
           </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Chat Message ────────────────────────────────────────────────────────────
-function ChatMessage({ msg, isStreaming }) {
-  const isUser = msg.role === "user";
-  const text = msg.content.replace("ONBOARDING_COMPLETE:", "").replace(/__ONBOARDING_COMPLETE__/g, "").trim();
-  // Strip JSON from displayed text if it's the complete message
-  const displayText = text.startsWith("{") ? "" : text.replace(/ONBOARDING_COMPLETE:.*$/s, "").trim();
-  const finalText = displayText || text;
-
-  return (
-    <div className={`flex gap-3 mb-4 ${isUser ? "flex-row-reverse" : "flex-row"} fade-in-up`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm flex-shrink-0 mt-1">
-          🤖
         </div>
-      )}
-      <div className={`max-w-[78%] px-4 py-3 text-sm leading-relaxed
-        ${isUser ? "chat-bubble-user text-white" : "chat-bubble-agent text-gray-100"}`}>
-        {finalText}
-        {isStreaming && <span className="cursor ml-0.5" />}
-      </div>
-    </div>
-  );
-}
-
-// ─── Onboarding View ────────────────────────────────────────────────────────
-function OnboardingView({ onComplete }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [streamingMsg, setStreamingMsg] = useState(null);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-
-  const currentStep = detectStep(messages);
-
-  const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-
-  useEffect(scrollToBottom, [messages, streamingMsg]);
-
-  // Auto-open message on mount
-  useEffect(() => {
-    const opening = "Hi! I'm FulfillAI, your fulfillment setup assistant. Let's get your account configured in just a few minutes. First, what's your brand name?";
-    setMessages([{ role: "assistant", content: opening }]);
-  }, []);
-
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
-    if (!text || loading) return;
-    setInput("");
-    setLoading(true);
-
-    const history = messages.map(m => ({ role: m.role, content: m.content }));
-    const newMessages = [...messages, { role: "user", content: text }];
-    setMessages(newMessages);
-
-    let accumulated = "";
-    setStreamingMsg({ role: "assistant", content: "" });
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
-      });
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          if (line.startsWith("event: onboarding_complete")) {
-            setStreamingMsg(null);
-            setMessages(prev => [...prev,
-              { role: "assistant", content: accumulated }
-            ]);
-            setLoading(false);
-            setTimeout(() => onComplete(), 400);
-            return;
-          }
-          if (line.startsWith("event: done")) break;
-          if (line.startsWith("data: ")) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              if (parsed.token !== undefined) {
-                accumulated += parsed.token;
-                setStreamingMsg({ role: "assistant", content: accumulated });
-              }
-            } catch {}
-          }
-        }
-      }
-    } catch (err) {
-      accumulated += "\n[Connection error. Please try again.]";
+      );
     }
-
-    setStreamingMsg(null);
-    setMessages(prev => [...prev, { role: "assistant", content: accumulated }]);
-    setLoading(false);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  }, [input, loading, messages, onComplete]);
-
-  const onKey = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
-
-  return (
-    <div className="flex gap-0 h-full">
-      {/* Left: Stepper */}
-      <div className="w-64 flex-shrink-0 border-r border-gray-800 p-6">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-6">
-          Setup Progress
-        </h3>
-        <Stepper currentStep={currentStep} />
-      </div>
-
-      {/* Right: Chat */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
-          {messages.map((m, i) => <ChatMessage key={i} msg={m} isStreaming={false} />)}
-          {streamingMsg && <ChatMessage msg={streamingMsg} isStreaming={true} />}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input bar */}
-        <div className="border-t border-gray-800 p-4 flex gap-3 items-end">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={onKey}
-            placeholder="Type your answer..."
-            rows={1}
-            className="flex-1 bg-gray-800 text-white placeholder-gray-500 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            style={{ minHeight: "48px", maxHeight: "120px" }}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={loading || !input.trim()}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-5 py-3 rounded-xl text-sm transition-all duration-150 flex items-center gap-2"
-          >
-            {loading
-              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full spin" />
-              : "Send"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    return this.props.children;
+  }
 }
 
-// ─── Severity Badge ──────────────────────────────────────────────────────────
-function SeverityBadge({ severity }) {
-  if (!severity) return null;
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-full severity-${severity}`}>
-      {severity === "HIGH" ? "🔴" : severity === "MEDIUM" ? "🟡" : "🟢"} {severity}
-    </span>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// SHARED
+// ═══════════════════════════════════════════════════════════════════════════
 
+const api = (url, opts) => fetch(url, opts).then(async r => {
+  if (!r.ok) {
+    const text = await r.text().catch(() => r.statusText);
+    return { error: text || r.statusText || `HTTP ${r.status}` };
+  }
+  try { return await r.json(); }
+  catch (e) { return { error: "Invalid JSON response" }; }
+}).catch(e => ({ error: e.message || "Network error" }));
+const post = (url, body) => api(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: body ? JSON.stringify(body) : undefined });
+
+function Spinner({ size="w-4 h-4" }) { return <span className={`inline-block ${size} border-2 border-blue-400 border-t-transparent rounded-full spin`} />; }
 function StatusBadge({ status }) {
-  return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full status-${status}`}>
-      {status}
-    </span>
-  );
+  const labels = { pending:"Pending", queued:"Queued", picking:"Picking", packing:"Packing", shipped:"Shipped", in_transit:"In Transit", delivered:"Delivered", exception:"Exception", on_hold:"On Hold", backorder:"Backorder" };
+  return <span className={`status-badge st-${status}`}>{labels[status]||status}</span>;
+}
+function TierBadge({ tier, vip }) {
+  const t = tier || "standard";
+  return <span className={`text-xs font-semibold tier-${t}`}>{vip ? "VIP " : ""}{t.charAt(0).toUpperCase()+t.slice(1)}</span>;
+}
+function Btn({ onClick, disabled, children, color="blue", className="" }) {
+  const c = { blue:"bg-blue-600 hover:bg-blue-500", green:"bg-green-700 hover:bg-green-600", red:"bg-red-800 hover:bg-red-700", gray:"bg-gray-700 hover:bg-gray-600" };
+  return <button onClick={onClick} disabled={disabled} className={`${c[color]} disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-4 py-2 rounded-lg text-sm transition-all ${className}`}>{children}</button>;
+}
+function Empty({ icon, title, sub }) {
+  return <div className="flex flex-col items-center justify-center h-48 text-gray-600"><div className="text-4xl mb-3">{icon}</div><p className="text-base font-semibold">{title}</p>{sub && <p className="text-sm mt-1">{sub}</p>}</div>;
+}
+function Input({ label, value, onChange, placeholder, type="text", className="" }) {
+  return <div className={className}><label className="block text-xs text-gray-500 mb-1">{label}</label><input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>;
+}
+function Select({ label, value, onChange, options, className="" }) {
+  return <div className={className}><label className="block text-xs text-gray-500 mb-1">{label}</label><select value={value} onChange={e=>onChange(e.target.value)} className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>;
 }
 
-// ─── Order Card ──────────────────────────────────────────────────────────────
-function OrderCard({ data, onApprove, onReject }) {
-  const { order, analysis, analyzing } = data;
-  const [decision, setDecision] = useState(null);
-  const [rejecting, setRejecting] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-  const isProblematic = order.status === "Exception" || order.status === "OnHold";
-  const productName = order.products?.[0]?.name || "Unknown Product";
-  const sku = order.products?.[0]?.sku || "";
+// ═══════════════════════════════════════════════════════════════════════════
+// 1. BRANDS TAB
+// ═══════════════════════════════════════════════════════════════════════════
 
-  const handleApprove = async () => {
-    await onApprove(order.id, analysis?.recommended_action);
-    setDecision("approved");
+function BrandsView() {
+  const [brands, setBrands] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [brandDetail, setBrandDetail] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name:"", platform:"shopify", store_url:"" });
+  const [productForm, setProductForm] = useState({ name:"", sku:"", category:"", weight_oz:"16", price:"" });
+  const [invEdits, setInvEdits] = useState({});
+
+  const loadBrands = () => api("/api/brands").then(d => setBrands(d.brands||[]));
+  useEffect(() => { loadBrands(); }, []);
+
+  const loadDetail = (id) => {
+    setSelected(id);
+    api(`/api/brands/${id}`).then(setBrandDetail);
   };
 
-  const handleReject = async () => {
-    await onReject(order.id, rejectReason || "No reason provided");
-    setDecision("rejected");
-    setRejecting(false);
+  const createBrand = async () => {
+    if (!form.name.trim()) return;
+    await post("/api/brands", form);
+    setForm({ name:"", platform:"shopify", store_url:"" });
+    setShowForm(false);
+    loadBrands();
+  };
+
+  const activateBrand = async (id) => {
+    await post(`/api/brands/${id}/activate`);
+    loadBrands();
+    loadDetail(id);
+  };
+
+  const addProduct = async () => {
+    if (!productForm.name || !productForm.sku || !selected) return;
+    await post(`/api/brands/${selected}/products`, {
+      ...productForm,
+      weight_oz: parseFloat(productForm.weight_oz) || 16,
+      price: parseFloat(productForm.price) || 0,
+    });
+    setProductForm({ name:"", sku:"", category:"", weight_oz:"16", price:"" });
+    loadDetail(selected);
+  };
+
+  const saveInventory = async () => {
+    if (!selected) return;
+    const items = Object.entries(invEdits).map(([key, qty]) => {
+      const [pid, fcid] = key.split("-");
+      return { product_id: parseInt(pid), fulfillment_center_id: parseInt(fcid), onhand_qty: parseInt(qty), fulfillable_qty: parseInt(qty) };
+    });
+    if (items.length === 0) return;
+    await post(`/api/brands/${selected}/inventory`, { items });
+    setInvEdits({});
+    loadDetail(selected);
   };
 
   return (
-    <div className="order-card fade-in-up transition-all duration-300 hover:shadow-lg">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-3 flex-wrap">
-        {analysis && <SeverityBadge severity={analysis.severity} />}
-        <span className="font-bold text-white">{order.order_number}</span>
-        <span className="text-gray-400 text-sm">{productName}</span>
-        <span className="text-xs text-gray-500 font-mono">{sku}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500">{order.recipient?.name}</span>
-          <StatusBadge status={order.status} />
+    <div className="flex h-full">
+      {/* Brand list */}
+      <div className="w-72 border-r border-gray-800 p-4 overflow-y-auto scrollbar-hide">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase">Brands</h3>
+          <button onClick={() => setShowForm(!showForm)} className="text-xs text-blue-400 hover:text-blue-300">+ New</button>
         </div>
+
+        {showForm && (
+          <div className="card p-4 mb-4 space-y-3 fade-in-up">
+            <Input label="Brand Name" value={form.name} onChange={v => setForm({...form, name:v})} placeholder="e.g. UrbanStep" />
+            <Select label="Platform" value={form.platform} onChange={v => setForm({...form, platform:v})} options={[{value:"shopify",label:"Shopify"},{value:"woocommerce",label:"WooCommerce"},{value:"amazon",label:"Amazon"},{value:"other",label:"Other"}]} />
+            <Input label="Store URL" value={form.store_url} onChange={v => setForm({...form, store_url:v})} placeholder="store.example.com" />
+            <Btn onClick={createBrand} className="w-full">Create Brand</Btn>
+          </div>
+        )}
+
+        {brands.length === 0 && !showForm && <Empty icon="🏪" title="No brands yet" sub='Click "+ New" to onboard' />}
+
+        {brands.map(b => (
+          <div key={b.id} onClick={() => loadDetail(b.id)}
+            className={`card px-4 py-3 mb-2 cursor-pointer ${selected === b.id ? 'border-blue-500' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-white font-semibold text-sm">{b.name}</span>
+              <span className={`text-xs ${b.status === 'active' ? 'text-green-400' : 'text-amber-400'}`}>{b.status}</span>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">{b.platform} — {b.product_count} products</div>
+          </div>
+        ))}
       </div>
 
-      {/* Body */}
-      <div className="px-5 py-4">
-        {analyzing ? (
-          <div className="flex items-center gap-3 text-blue-400 text-sm py-2">
-            <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full spin" />
-            🤖 Analyzing exception...
-          </div>
-        ) : isProblematic && analysis ? (
-          <div className="space-y-3">
-            {/* Diagnosis */}
-            <p className="text-gray-300 text-sm leading-relaxed">{analysis.diagnosis}</p>
-
-            {/* Severity reason */}
-            <p className="text-xs text-gray-500 italic">{analysis.severity_reason}</p>
-
-            {/* Recommended action */}
-            <div className="bg-gray-900 rounded-lg px-4 py-3">
-              <p className="text-xs text-gray-400 mb-1 font-semibold uppercase tracking-wide">Recommended Action</p>
-              <p className="text-white font-semibold text-sm">{analysis.recommended_action}</p>
+      {/* Brand detail */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
+        {!brandDetail ? <Empty icon="🏪" title="Select a brand" sub="Or create a new one" /> : (
+          <div className="max-w-4xl fade-in-up">
+            <div className="flex items-center gap-4 mb-6">
+              <h2 className="text-2xl font-bold text-white">{brandDetail.name}</h2>
+              <span className={`text-sm font-semibold ${brandDetail.status === 'active' ? 'text-green-400' : 'text-amber-400'}`}>{brandDetail.status}</span>
+              {brandDetail.status === 'onboarding' && (
+                <Btn onClick={() => activateBrand(brandDetail.id)} color="green" className="text-xs !px-3 !py-1">Activate Brand</Btn>
+              )}
             </div>
 
-            {/* Merchant message */}
-            <div className="border-l-2 border-gray-600 pl-3">
-              <p className="text-xs text-gray-400 mb-1 font-semibold uppercase tracking-wide">Merchant Message</p>
-              <p className="text-gray-400 text-sm italic leading-relaxed">{analysis.merchant_message}</p>
-            </div>
-
-            {/* Actions */}
-            {!decision ? (
-              <div className="pt-1">
-                {!rejecting ? (
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleApprove}
-                      className="bg-green-700 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all"
-                    >
-                      ✅ Approve
-                    </button>
-                    <button
-                      onClick={() => setRejecting(true)}
-                      className="bg-red-800 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all"
-                    >
-                      ❌ Reject
-                    </button>
-                    <button className="text-xs text-gray-500 hover:text-gray-300 underline transition-colors ml-1">
-                      Edit
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <input
-                      value={rejectReason}
-                      onChange={e => setRejectReason(e.target.value)}
-                      placeholder="Reason for rejection (optional)"
-                      className="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-red-500 w-full"
-                    />
-                    <div className="flex gap-2">
-                      <button onClick={handleReject}
-                        className="bg-red-700 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all">
-                        Confirm Reject
-                      </button>
-                      <button onClick={() => setRejecting(false)}
-                        className="text-gray-400 hover:text-gray-200 text-sm px-3 py-2 transition-colors">
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
+            {/* Add Product */}
+            <div className="card p-5 mb-6">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Add Product</h3>
+              <div className="grid grid-cols-5 gap-3">
+                <Input label="Product Name" value={productForm.name} onChange={v => setProductForm({...productForm, name:v})} placeholder="Black Sneaker" />
+                <Input label="SKU" value={productForm.sku} onChange={v => setProductForm({...productForm, sku:v})} placeholder="US-SNK-001" />
+                <Input label="Category" value={productForm.category} onChange={v => setProductForm({...productForm, category:v})} placeholder="footwear" />
+                <Input label="Weight (oz)" value={productForm.weight_oz} onChange={v => setProductForm({...productForm, weight_oz:v})} type="number" />
+                <Input label="Price ($)" value={productForm.price} onChange={v => setProductForm({...productForm, price:v})} type="number" />
               </div>
-            ) : (
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
-                ${decision === "approved" ? "bg-green-900 text-green-300" : "bg-red-900 text-red-300"}`}>
-                {decision === "approved" ? "✅ Approved" : "❌ Rejected"}
+              <Btn onClick={addProduct} className="mt-3 text-xs !px-3 !py-1.5">Add Product</Btn>
+            </div>
+
+            {/* Products + Inventory */}
+            {brandDetail.products?.length > 0 && (
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase">Products & Inventory</h3>
+                  {Object.keys(invEdits).length > 0 && <Btn onClick={saveInventory} color="green" className="text-xs !px-3 !py-1">Save Inventory</Btn>}
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700 text-xs text-gray-500">
+                      <th className="text-left py-2 px-2">Product</th>
+                      <th className="text-left py-2 px-2">SKU</th>
+                      <th className="text-right py-2 px-2">${"Price"}</th>
+                      {brandDetail.products[0]?.inventory?.map(inv => (
+                        <th key={inv.fc_code} className="text-center py-2 px-2">{inv.fc_code}</th>
+                      ))}
+                      <th className="text-right py-2 px-2">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {brandDetail.products.map(p => (
+                      <tr key={p.id} className="border-b border-gray-800">
+                        <td className="py-2 px-2 text-gray-300">{p.name}</td>
+                        <td className="py-2 px-2 text-gray-500 font-mono text-xs">{p.sku}</td>
+                        <td className="py-2 px-2 text-green-400 text-right">${p.price?.toFixed(2)}</td>
+                        {p.inventory?.map(inv => (
+                          <td key={inv.fc_code} className="py-1 px-2 text-center">
+                            <input
+                              type="number" min="0"
+                              value={invEdits[`${p.id}-${inv.fc_id}`] !== undefined ? invEdits[`${p.id}-${inv.fc_id}`] : inv.fulfillable}
+                              onChange={e => setInvEdits({...invEdits, [`${p.id}-${inv.fc_id}`]: e.target.value})}
+                              className={`w-16 bg-gray-800 text-center rounded px-1 py-1 text-sm ${inv.fulfillable < 5 ? 'text-red-400' : 'text-gray-300'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                            />
+                          </td>
+                        ))}
+                        <td className={`py-2 px-2 text-right font-semibold ${p.total_stock < 10 ? 'text-red-400' : 'text-green-400'}`}>{p.total_stock}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
-        ) : !isProblematic ? (
-          <div className="flex items-center gap-2 text-green-400 text-sm">
-            <span className="w-5 h-5 bg-green-900 rounded-full flex items-center justify-center text-xs">✓</span>
-            Healthy — no action required
-          </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Live Ops View ───────────────────────────────────────────────────────────
-function LiveOpsView({ autoRun }) {
-  const [orderData, setOrderData] = useState({});
-  const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
-  const hasAutoRun = useRef(false);
+// ═══════════════════════════════════════════════════════════════════════════
+// 2. OPERATIONS TAB
+// ═══════════════════════════════════════════════════════════════════════════
 
-  const runAnalysis = useCallback(async () => {
-    if (running) return;
-    setRunning(true);
-    setDone(false);
-    setOrderData({});
+const PIPELINE = ["pending","queued","picking","packing","shipped","in_transit","delivered"];
+const PROBLEMS = ["backorder","exception"];
 
+function OperationsView({ refreshKey }) {
+  const [orders, setOrders] = useState([]);
+  const [stats, setStats] = useState({});
+  const [filter, setFilter] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [centers, setCenters] = useState([]);
+  const [showInventory, setShowInventory] = useState(false);
+
+  const load = () => {
+    api("/api/orders" + (filter ? `?status=${filter}` : "")).then(d => setOrders(d.orders||[]));
+    api("/api/orders/stats").then(d => setStats(d.by_status||{}));
+    api("/api/fulfillment/centers").then(d => setCenters(d.centers||[]));
+  };
+  useEffect(load, [filter, refreshKey]);
+
+  const loadDetail = (id) => api(`/api/orders/${id}`).then(setDetail);
+
+  const totalOrders = Object.values(stats).reduce((a,b)=>a+b,0);
+
+  return (
+    <div className="flex h-full">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Pipeline bar */}
+        <div className="border-b border-gray-800 px-6 py-3">
+          <div className="flex gap-1.5 flex-wrap">
+            <button onClick={() => setFilter(null)} className={`status-badge cursor-pointer ${!filter ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>All ({totalOrders})</button>
+            {[...PIPELINE, ...PROBLEMS].map(s => {
+              const count = stats[s] || 0;
+              if (count === 0 && PROBLEMS.includes(s)) return null;
+              return <button key={s} onClick={() => setFilter(s)} className={`status-badge cursor-pointer ${filter===s ? 'st-'+s : 'bg-gray-800 text-gray-400'}`}>{s.replace("_"," ")} ({count})</button>;
+            })}
+          </div>
+        </div>
+
+        {/* Orders */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
+          {orders.length === 0 ? <Empty icon="📦" title="No orders" sub="Place orders via Storefront or use Mock Orders" /> : (
+            <div className="space-y-2 max-w-4xl">
+              {orders.map(o => (
+                <div key={o.id} onClick={() => loadDetail(o.id)} className={`card px-5 py-3 cursor-pointer ${detail?.id === o.id ? 'border-blue-500' : ''}`}>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-bold text-white text-sm">{o.order_number}</span>
+                    <StatusBadge status={o.status} />
+                    <TierBadge tier={o.shipping_tier} vip={o.is_vip} />
+                    {o.priority_score > 0 && <span className="text-xs text-purple-400">P:{o.priority_score}</span>}
+                    {o.queue_position && <span className="text-xs text-gray-600">Q#{o.queue_position}</span>}
+                    <span className="text-xs text-gray-500">{o.brand_name}</span>
+                    <span className="text-xs text-gray-600">{(o.items || []).map(i=>i.name).join(", ")}</span>
+                    <div className="ml-auto flex items-center gap-3">
+                      <span className="text-xs text-gray-500">{o.recipient_name} — {o.recipient_city}, {o.recipient_state}</span>
+                      <span className="text-sm font-semibold text-green-400">${o.total?.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Inventory toggle */}
+        <div className="border-t border-gray-800 px-6 py-2">
+          <button onClick={() => setShowInventory(!showInventory)} className="text-xs text-gray-500 hover:text-white">
+            {showInventory ? "▼ Hide Inventory" : "▶ Show Inventory Across FCs"}
+          </button>
+          {showInventory && (
+            <div className="grid grid-cols-4 gap-3 mt-3 mb-2">
+              {centers.map(fc => (
+                <div key={fc.id} className="card p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold text-blue-400">{fc.code}</span>
+                    <span className="text-xs text-gray-500">{fc.city}, {fc.state}</span>
+                  </div>
+                  {fc.products?.length === 0 ? <p className="text-xs text-gray-600">No inventory</p> :
+                    fc.products?.slice(0,5).map((p,i) => (
+                      <div key={i} className="flex justify-between text-xs py-0.5">
+                        <span className="text-gray-400 truncate" style={{maxWidth:"120px"}}>{p.sku}</span>
+                        <span className={p.fulfillable < 5 ? 'text-red-400 font-semibold' : 'text-gray-300'}>{p.fulfillable}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Order detail panel with agent trace */}
+      {detail && (
+        <div className="w-[420px] border-l border-gray-800 overflow-y-auto scrollbar-hide p-5 fade-in-up">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">{detail.order_number}</h3>
+            <button onClick={() => setDetail(null)} className="text-gray-500 hover:text-white">✕</button>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            <div className="flex flex-wrap gap-2">
+              <StatusBadge status={detail.status} />
+              <TierBadge tier={detail.shipping_tier} vip={detail.is_vip} />
+              {detail.priority_score > 0 && <span className="text-xs text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded-full">Priority: {detail.priority_score}</span>}
+            </div>
+            <div className="text-sm text-gray-400 space-y-1">
+              <p><span className="text-gray-600">Brand:</span> {detail.brand}</p>
+              <p><span className="text-gray-600">To:</span> {detail.recipient_name}, {detail.recipient_city}, {detail.recipient_state}</p>
+              <p><span className="text-gray-600">Total:</span> <span className="text-green-400">${detail.total?.toFixed(2)}</span></p>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="mb-6">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Items</h4>
+            {detail.items?.map((item, i) => (
+              <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-800">
+                <span className="text-gray-300">{item.name} <span className="text-gray-600 text-xs">({item.sku})</span></span>
+                <span className="text-gray-400">x{item.quantity}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Shipments */}
+          {detail.shipments?.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Shipments</h4>
+              {detail.shipments.map(s => (
+                <div key={s.id} className="card p-3 mb-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <StatusBadge status={s.status} />
+                    <span className="text-gray-400">{s.fc_code}</span>
+                    {s.carrier && <span className="text-gray-400">→ {s.carrier} {s.carrier_service}</span>}
+                    {s.shipping_cost && <span className="text-green-400">${s.shipping_cost.toFixed(2)}</span>}
+                  </div>
+                  {s.tracking_number && <p className="text-xs text-blue-400 font-mono mt-1">{s.tracking_number}</p>}
+                  {s.events?.length > 0 && (
+                    <div className="mt-2 border-l border-gray-700 pl-3 space-y-1">
+                      {s.events.map((e, j) => (
+                        <div key={j} className="text-xs"><span className="text-gray-600">{e.occurred_at ? new Date(e.occurred_at).toLocaleString() : ""}</span> <span className="text-gray-400">{e.message}</span></div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Agent Pipeline Trace */}
+          {detail.agent_trace?.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Agent Decision Trace</h4>
+              <div className="space-y-3">
+                {detail.agent_trace.map((a, i) => (
+                  <div key={i} className="border-l-2 border-gray-700 pl-3 py-1">
+                    <div className="flex items-center gap-2">
+                      {a.step_number > 0 && <span className="text-xs font-bold text-gray-600">#{a.step_number}</span>}
+                      <span className={`text-xs font-bold uppercase at-${a.action_type}`}>{(a.action_type || "").replace(/_/g," ")}</span>
+                      {a.severity !== 'info' && <span className={`text-xs px-1.5 py-0.5 rounded ${a.severity === 'warning' ? 'bg-amber-900/30 text-amber-400' : 'bg-red-900/30 text-red-400'}`}>{a.severity}</span>}
+                    </div>
+                    <p className="text-sm text-gray-300 mt-1">{a.output_summary}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{a.created_at ? new Date(a.created_at).toLocaleString() : ""}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 3. COMMAND CENTER — autonomous AI anomaly workflow review
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ConfidenceBadge({ level }) {
+  if (!level) return null;
+  const styles = {
+    high:   "bg-green-900/40 text-green-300 border-green-700",
+    medium: "bg-amber-900/40 text-amber-300 border-amber-700",
+    low:    "bg-red-900/40 text-red-300 border-red-700",
+  };
+  return <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${styles[level] || styles.low}`}>Confidence: {level}</span>;
+}
+
+function SeverityBadge({ level }) {
+  const styles = {
+    low:      "bg-blue-900/40 text-blue-300",
+    medium:   "bg-amber-900/40 text-amber-300",
+    high:     "bg-orange-900/40 text-orange-300",
+    critical: "bg-red-900/40 text-red-300",
+  };
+  return <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${styles[level] || styles.medium}`}>{level}</span>;
+}
+
+function AnomalyStatusBadge({ status }) {
+  const styles = {
+    detected:       "bg-gray-800 text-gray-300",
+    investigating:  "bg-blue-900/40 text-blue-300",
+    diagnosed:      "bg-purple-900/40 text-purple-300",
+    drafting:       "bg-purple-900/40 text-purple-300",
+    pending_review: "bg-amber-900/40 text-amber-300",
+    resolved:       "bg-green-900/40 text-green-300",
+    rejected:       "bg-red-900/40 text-red-300",
+  };
+  return <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${styles[status] || "bg-gray-800 text-gray-300"}`}>{status?.replace("_"," ")}</span>;
+}
+
+function EvidenceChip({ source }) {
+  if (!source) return null;
+  if (source.startsWith("internal:")) {
+    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 ml-2">{source.slice(9, 60)}</span>;
+  }
+  if (source.startsWith("source:")) {
+    const url = source.slice(7);
+    let host = url;
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+    return <a href={url} target="_blank" rel="noopener" className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 ml-2">↗ {host}</a>;
+  }
+  return <span className="text-[10px] text-gray-500 ml-2">{source}</span>;
+}
+
+function NotificationCard({ notif, onUpdate }) {
+  const [editing, setEditing] = useState(false);
+  const [subject, setSubject] = useState(notif.subject || "");
+  const [body, setBody] = useState(notif.body || "");
+  const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const statusColor = {
+    draft: "text-amber-400",
+    sent: "text-green-400",
+    rejected: "text-red-400",
+  }[notif.status] || "text-gray-400";
+
+  const save = async () => {
+    setBusy(true);
     try {
-      const res = await fetch("/api/analyze");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      const res = await fetch(`/api/notifications/${notif.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, body }),
+      }).then(r => r.json());
+      if (!res.error) { setEditing(false); onUpdate?.(); }
+    } finally { setBusy(false); }
+  };
 
-      while (true) {
-        const { done: rdone, value } = await reader.read();
-        if (rdone) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await post(`/api/notifications/${notif.id}/approve-send`);
+      onUpdate?.();
+    } finally { setBusy(false); }
+  };
 
-        for (const line of lines) {
-          if (line.startsWith("event: done")) { setDone(true); break; }
-          if (line.startsWith("data: ")) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              setOrderData(prev => ({
-                ...prev,
-                [parsed.order_id]: parsed,
-              }));
-            } catch {}
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setRunning(false);
-    setDone(true);
-  }, [running]);
+  const reject = async () => {
+    setBusy(true);
+    try {
+      await post(`/api/notifications/${notif.id}/reject`);
+      onUpdate?.();
+    } finally { setBusy(false); }
+  };
 
+  return (
+    <div className="border border-gray-800 rounded-lg p-3 bg-gray-900/40">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs text-gray-500">To:</span>
+        <span className="text-sm text-gray-300 font-semibold">{notif.recipient_name}</span>
+        <span className={`ml-auto text-[10px] font-bold uppercase ${statusColor}`}>{notif.status}</span>
+        {notif.is_fallback && <span className="text-[10px] text-amber-400 bg-amber-900/30 px-1.5 py-0.5 rounded">fallback</span>}
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-gray-800 text-white rounded px-2 py-1 text-sm" />
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={6} className="w-full bg-gray-800 text-gray-200 rounded px-2 py-1 text-xs font-mono" />
+          <div className="flex gap-2">
+            <Btn onClick={save} disabled={busy} color="green" className="!text-xs !px-2 !py-1">{busy ? "Saving…" : "Save"}</Btn>
+            <Btn onClick={() => setEditing(false)} color="gray" className="!text-xs !px-2 !py-1">Cancel</Btn>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-white font-semibold">{notif.subject}</p>
+          <p className={`text-xs text-gray-400 mt-1 whitespace-pre-wrap ${expanded ? "" : "line-clamp-3"}`}>{notif.body}</p>
+          <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-blue-400 hover:text-blue-300 mt-1">
+            {expanded ? "Show less" : "Show full message"}
+          </button>
+          {notif.status === "draft" && (
+            <div className="flex gap-2 mt-3">
+              <Btn onClick={approve} disabled={busy} color="green" className="!text-xs !px-2 !py-1">✓ Approve &amp; Send</Btn>
+              <Btn onClick={() => { setSubject(notif.subject); setBody(notif.body); setEditing(true); }} color="gray" className="!text-xs !px-2 !py-1">✏ Edit</Btn>
+              <Btn onClick={reject} disabled={busy} color="red" className="!text-xs !px-2 !py-1">✗ Reject</Btn>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AnomalyCard({ anomaly, onAction }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [reinvestigating, setReinvestigating] = useState(false);
+  const [opsNote, setOpsNote] = useState("");
+  const [expanded, setExpanded] = useState(anomaly.status === "pending_review");
+
+  const loadDetail = useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await api(`/api/anomalies/${anomaly.id}`);
+      if (!d.error) setDetail(d);
+    } finally { setLoading(false); }
+  }, [anomaly.id]);
+
+  useEffect(() => { if (expanded) loadDetail(); }, [expanded, loadDetail]);
+
+  const approve = async () => {
+    if (!confirm("Send ALL drafted notifications to customers?")) return;
+    setBusy(true);
+    try {
+      await post(`/api/anomalies/${anomaly.id}/approve`);
+      onAction?.();
+    } finally { setBusy(false); }
+  };
+
+  const reject = async () => {
+    const reason = prompt("Reason for rejecting? (optional)") || "";
+    if (reason === null) return;
+    setBusy(true);
+    try {
+      await post(`/api/anomalies/${anomaly.id}/reject`, { reason });
+      onAction?.();
+    } finally { setBusy(false); }
+  };
+
+  const reInvestigate = async () => {
+    if (!opsNote.trim()) return;
+    setBusy(true);
+    try {
+      await post(`/api/anomalies/${anomaly.id}/re-investigate`, { ops_context: opsNote });
+      setReinvestigating(false);
+      setOpsNote("");
+      await loadDetail();
+      onAction?.();
+    } finally { setBusy(false); }
+  };
+
+  const d = detail || anomaly;
+  const groundingEmpty = expanded && detail && (!detail.ai_sources_used || detail.ai_sources_used.length === 0);
+
+  return (
+    <div className="card p-5 fade-in-up">
+      <div className="flex items-center gap-3 flex-wrap">
+        <SeverityBadge level={d.severity} />
+        <AnomalyStatusBadge status={d.status} />
+        <span className="text-sm font-bold text-white">{d.scope_label}</span>
+        <span className="text-xs text-gray-500">{d.anomaly_type?.replace(/_/g," ")}</span>
+        <span className="text-xs text-gray-500">· {d.affected_count} orders</span>
+        {d.ai_confidence && <ConfidenceBadge level={d.ai_confidence} />}
+        <span className="ml-auto text-xs text-gray-600">{d.detected_at ? new Date(d.detected_at).toLocaleString() : ""}</span>
+      </div>
+
+      <p className="text-sm text-gray-400 mt-2">{d.detection_summary}</p>
+
+      {d.ai_likely_cause && (
+        <div className="mt-4">
+          <div className="text-[10px] uppercase text-gray-500 font-semibold mb-1">AI Diagnosis — Likely cause</div>
+          <p className="text-base text-white font-semibold">{d.ai_likely_cause}</p>
+        </div>
+      )}
+
+      <button onClick={() => setExpanded(!expanded)} className="text-xs text-blue-400 hover:text-blue-300 mt-3">
+        {expanded ? "▲ Collapse" : "▼ Show full diagnosis, evidence & draft notifications"}
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-5 border-t border-gray-800 pt-4">
+          {loading && <div className="text-xs text-gray-500 flex items-center gap-2"><Spinner /> Loading detail…</div>}
+
+          {detail && (
+            <>
+              {groundingEmpty && (
+                <div className="p-3 rounded-lg border border-red-800 bg-red-900/20">
+                  <p className="text-sm font-bold text-red-300">⚠ Low-confidence diagnosis — no external evidence</p>
+                  <p className="text-xs text-red-400 mt-1">No web grounding sources were cited. Review carefully before sending anything to customers.</p>
+                </div>
+              )}
+
+              {detail.ai_detailed_reasoning && (
+                <div>
+                  <div className="text-[10px] uppercase text-gray-500 font-semibold mb-1">Reasoning</div>
+                  <p className="text-sm text-gray-300 whitespace-pre-wrap">{detail.ai_detailed_reasoning}</p>
+                </div>
+              )}
+
+              {detail.ai_evidence?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase text-gray-500 font-semibold mb-1">Evidence</div>
+                  <ul className="space-y-1.5">
+                    {detail.ai_evidence.map((e, i) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-start">
+                        <span className="text-gray-600 mr-2">•</span>
+                        <span className="flex-1">{e.bullet}<EvidenceChip source={e.source} /></span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {detail.ai_recommended_action && (
+                <div className="p-3 rounded-lg bg-blue-900/20 border border-blue-800">
+                  <div className="text-[10px] uppercase text-blue-400 font-semibold mb-1">Recommended action</div>
+                  <p className="text-sm text-blue-100">{detail.ai_recommended_action}</p>
+                </div>
+              )}
+
+              {detail.ai_grounding_sources?.length > 0 && (
+                <details className="border border-gray-800 rounded-lg p-3">
+                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-white">
+                    Tavily grounding sources ({detail.ai_grounding_sources.length} fetched, {detail.ai_sources_used?.length || 0} cited)
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {detail.ai_grounding_sources.map((g, i) => (
+                      <div key={i} className="text-xs border-l-2 border-gray-800 pl-2">
+                        <a href={g.url} target="_blank" rel="noopener" className="text-blue-400 hover:text-blue-300 font-semibold">{g.title || g.url}</a>
+                        <p className="text-gray-500 mt-0.5">{g.content}</p>
+                        {g.published_date && <p className="text-gray-700 mt-0.5">{g.published_date}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {detail.notifications?.length > 0 && (
+                <div>
+                  <div className="text-[10px] uppercase text-gray-500 font-semibold mb-2">
+                    Draft notifications ({detail.notifications.filter(n => n.status === "draft").length} pending · {detail.notifications.length} total)
+                  </div>
+                  <div className="space-y-2">
+                    {detail.notifications.map(n => (
+                      <NotificationCard key={n.id} notif={n} onUpdate={loadDetail} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {d.ops_context && (
+                <div className="text-xs text-gray-500 border-l-2 border-gray-700 pl-2">
+                  <span className="text-gray-600">Ops context: </span>{d.ops_context}
+                </div>
+              )}
+
+              {/* Anomaly-level actions */}
+              {(d.status === "pending_review" || d.status === "diagnosed") && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-800">
+                  <Btn onClick={approve} disabled={busy} color="green">✓ Approve &amp; Send All</Btn>
+                  <Btn onClick={reject} disabled={busy} color="red">✗ Reject</Btn>
+                  <Btn onClick={() => setReinvestigating(!reinvestigating)} color="gray">↻ Re-investigate</Btn>
+                </div>
+              )}
+
+              {reinvestigating && (
+                <div className="p-3 rounded-lg border border-gray-700 bg-gray-900">
+                  <label className="text-xs text-gray-400 block mb-2">Tell the AI what it got wrong — this note will be used to re-run the investigation.</label>
+                  <textarea
+                    value={opsNote}
+                    onChange={e => setOpsNote(e.target.value)}
+                    rows={3}
+                    placeholder="e.g. it's actually a carrier staffing shortage, not weather"
+                    className="w-full bg-gray-800 text-white rounded px-2 py-1 text-sm"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <Btn onClick={reInvestigate} disabled={busy || !opsNote.trim()} color="blue" className="!text-xs">
+                      {busy ? <><Spinner /> Re-running…</> : "Re-investigate with this context"}
+                    </Btn>
+                    <Btn onClick={() => { setReinvestigating(false); setOpsNote(""); }} color="gray" className="!text-xs">Cancel</Btn>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommandCenterView({ refreshKey, onAction }) {
+  const [filter, setFilter] = useState("pending_review");
+  const [data, setData] = useState({ anomalies: [], counts: {} });
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api(`/api/anomalies?status=${filter}`);
+      if (!res.error) setData(res);
+    } finally { setLoading(false); }
+  }, [filter]);
+
+  useEffect(() => { load(); }, [load, refreshKey]);
+
+  // Auto-refresh every 15s so new anomalies appear without a click
   useEffect(() => {
-    if (autoRun && !hasAutoRun.current) {
-      hasAutoRun.current = true;
-      setTimeout(runAnalysis, 600);
-    }
-  }, [autoRun, runAnalysis]);
+    const iv = setInterval(load, 15000);
+    return () => clearInterval(iv);
+  }, [load]);
 
-  const handleApprove = async (orderId, action) => {
-    await fetch("/api/approve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order_id: orderId, action }),
-    });
+  const scanNow = async () => {
+    setScanning(true);
+    setScanMsg(null);
+    try {
+      const res = await post("/api/anomalies/scan-now");
+      if (res.error) {
+        setScanMsg(`Scan error: ${res.error}`);
+      } else {
+        setScanMsg(`Scan complete — ${res.new_anomalies} new anomaly(ies), ${res.processed?.length || 0} processed, ${res.errors?.length || 0} errors`);
+      }
+      await load();
+      onAction?.();
+    } finally { setScanning(false); }
   };
 
-  const handleReject = async (orderId, reason) => {
-    await fetch("/api/reject", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order_id: orderId, reason }),
-    });
-  };
+  const handleAnomalyAction = () => { load(); onAction?.(); };
 
-  // Stats
-  const allCards = Object.values(orderData);
-  const total = allCards.length;
-  const critical = allCards.filter(d => d.analysis?.severity === "HIGH").length;
-  const medium = allCards.filter(d => d.analysis?.severity === "MEDIUM").length;
-  const healthy = allCards.filter(d => !d.order || (!["Exception","OnHold"].includes(d.order.status))).length;
+  const FILTERS = [
+    { id: "pending_review", label: "Pending review" },
+    { id: "open",           label: "All open" },
+    { id: "resolved",       label: "Resolved" },
+    { id: "rejected",       label: "Rejected" },
+    { id: "all",            label: "All" },
+  ];
 
   return (
     <div className="flex flex-col h-full">
-      {/* Stats bar */}
-      <div className="border-b border-gray-800 px-6 py-4 flex items-center gap-6 flex-wrap">
-        <div className="flex gap-6 flex-wrap flex-1">
-          <Stat label="Orders Monitored" value={total || "—"} color="text-white" />
-          <Stat label="Critical" value={critical || "—"} color="text-red-400" icon="🔴" />
-          <Stat label="Action Needed" value={medium || "—"} color="text-amber-400" icon="🟡" />
-          <Stat label="Healthy" value={healthy || "—"} color="text-green-400" icon="🟢" />
+      {/* Top bar */}
+      <div className="border-b border-gray-800 px-6 py-3 flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-green-500 pulse-ring" />
+          <span className="text-xs font-semibold text-green-400">Auto-monitor: ON</span>
+          <span className="text-xs text-gray-500">scans every 60s</span>
         </div>
-        <button
-          onClick={runAnalysis}
-          disabled={running}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all glow-blue"
-        >
-          {running
-            ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full spin" /> Analyzing...</>
-            : "▶ Run Analysis"}
-        </button>
+        <Btn onClick={scanNow} disabled={scanning} color="blue" className="!text-xs !px-3 !py-1.5">
+          {scanning ? <><Spinner size="w-3 h-3" /> Scanning…</> : "⚡ Scan now"}
+        </Btn>
+        {scanMsg && <span className="text-xs text-gray-400">{scanMsg}</span>}
+        <div className="flex gap-1 ml-auto">
+          {FILTERS.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`text-xs px-3 py-1.5 rounded font-semibold ${filter === f.id ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}
+            >
+              {f.label}
+              {f.id === "pending_review" && data.counts?.pending_review > 0 && (
+                <span className="ml-1.5 bg-amber-500 text-gray-900 rounded-full px-1.5 text-[10px] font-bold">{data.counts.pending_review}</span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Cards */}
+      {/* Anomaly list */}
       <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
-        {Object.keys(orderData).length === 0 && !running && (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-600">
-            <div className="text-5xl mb-4">📦</div>
-            <p className="text-lg font-semibold">No analysis yet</p>
-            <p className="text-sm mt-1">Click "Run Analysis" to scan all orders</p>
+        <div className="max-w-4xl mx-auto space-y-4">
+          {loading && data.anomalies.length === 0 && (
+            <div className="text-center py-12 text-gray-600"><Spinner /> Loading…</div>
+          )}
+          {!loading && data.anomalies.length === 0 && (
+            <Empty
+              icon="✨"
+              title={filter === "pending_review" ? "Nothing to review" : "No anomalies"}
+              sub={filter === "pending_review" ? "The autonomous monitor will surface issues here as they're detected. Try simulating a disruption to see the workflow in action." : "Try a different filter"}
+            />
+          )}
+          {data.anomalies.map(a => (
+            <AnomalyCard key={a.id} anomaly={a} onAction={handleAnomalyAction} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 4. ACTIVITY LOG TAB
+// ═══════════════════════════════════════════════════════════════════════════
+
+function ActivityView() {
+  const [actions, setActions] = useState([]);
+  const [liveEvents, setLiveEvents] = useState([]);
+  const [filterType, setFilterType] = useState("");
+
+  useEffect(() => {
+    api("/api/activity/history").then(d => setActions(d.actions||[]));
+  }, []);
+
+  useEffect(() => {
+    const es = new EventSource("/api/activity/feed");
+    es.onmessage = (e) => {
+      try { setLiveEvents(prev => [JSON.parse(e.data), ...prev].slice(0, 200)); } catch {}
+    };
+    return () => es.close();
+  }, []);
+
+  const allEvents = [...liveEvents, ...actions];
+  const filtered = filterType ? allEvents.filter(a => a.action_type === filterType) : allEvents;
+
+  const actionTypes = [...new Set(allEvents.map(a => a.action_type))];
+
+  const stepLabels = {
+    availability_check: { icon: "1", color: "at-availability_check", label: "Availability" },
+    fc_selection: { icon: "2", color: "at-fc_selection", label: "FC Selection" },
+    shipping_calc: { icon: "3", color: "at-shipping_calc", label: "Shipping" },
+    priority: { icon: "4", color: "at-priority", label: "Priority" },
+    edge_case: { icon: "5", color: "at-edge_case", label: "Edge Case" },
+    finalize: { icon: "6", color: "at-finalize", label: "Finalize" },
+    queue_advance: { icon: "→", color: "at-queue_advance", label: "Queue" },
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="border-b border-gray-800 px-6 py-3 flex items-center gap-4">
+        <h3 className="text-sm font-semibold text-gray-400 uppercase">Agent Activity Log</h3>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <span className="w-2 h-2 rounded-full bg-green-500 pulse-ring" />
+          <span className="text-xs text-green-400">Live</span>
+        </div>
+        <div className="flex gap-1">
+          <button onClick={() => setFilterType("")} className={`text-xs px-2 py-1 rounded ${!filterType ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>All</button>
+          {actionTypes.map(t => {
+            const info = stepLabels[t] || { color: "text-gray-400", label: t };
+            return <button key={t} onClick={() => setFilterType(t)} className={`text-xs px-2 py-1 rounded ${filterType===t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>{info.label}</button>;
+          })}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
+        {filtered.length === 0 ? <Empty icon="📡" title="No activity yet" sub="Process orders to see agent decisions here" /> : (
+          <div className="max-w-3xl mx-auto space-y-2">
+            {filtered.map((a, i) => {
+              const info = stepLabels[a.action_type] || { icon: "?", color: "text-gray-400", label: a.action_type };
+              return (
+                <div key={`${a.id}-${i}`} className="card px-5 py-3 fade-in-up">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className={`w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold ${info.color}`}>{info.icon}</span>
+                    <span className={`text-xs font-bold uppercase ${info.color}`}>{info.label}</span>
+                    <span className="text-xs text-gray-600">order #{a.entity_id}</span>
+                    {a.severity && a.severity !== 'info' && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${a.severity === 'warning' ? 'bg-amber-900/30 text-amber-400' : 'bg-red-900/30 text-red-400'}`}>{a.severity}</span>
+                    )}
+                    <span className="ml-auto text-xs text-gray-600">{a.created_at ? new Date(a.created_at).toLocaleString() : ""}</span>
+                  </div>
+                  <p className="text-sm text-gray-300 mt-1.5 ml-9">{a.output_summary}</p>
+                  {a.input_summary && <p className="text-xs text-gray-600 mt-0.5 ml-9">{a.input_summary}</p>}
+                </div>
+              );
+            })}
           </div>
         )}
-        <div className="grid gap-4 max-w-4xl mx-auto">
-          {Object.values(orderData).map(d => (
-            <OrderCard
-              key={d.order_id}
-              data={d}
-              onApprove={handleApprove}
-              onReject={handleReject}
-            />
-          ))}
-        </div>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, color, icon }) {
+// ═══════════════════════════════════════════════════════════════════════════
+// SIMULATION BAR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function SimBar({ onAction }) {
+  const [mocking, setMocking] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [disrupting, setDisrupting] = useState(false);
+  const [showDisrupt, setShowDisrupt] = useState(false);
+  const [disruption, setDisruption] = useState({ scope: "fc", target: "LAX", event: "wildfire smoke grounding flights" });
+  const [msg, setMsg] = useState(null);
+
+  const mock = async () => {
+    setMocking(true);
+    try {
+      const res = await post("/api/simulate/mock-orders?count=5");
+      setMsg(res.error || `Created ${res.created} orders`);
+      onAction?.();
+    } finally { setMocking(false); }
+  };
+  const advance = async () => {
+    setAdvancing(true);
+    try {
+      const res = await post("/api/simulate/advance-queue?count=5");
+      setMsg(res.error || `Advanced ${res.advanced} orders`);
+      onAction?.();
+    } finally { setAdvancing(false); }
+  };
+  const reset = async () => {
+    if (!confirm("Reset database? All data except FCs/carriers will be deleted.")) return;
+    setResetting(true);
+    try {
+      const res = await post("/api/simulate/reset");
+      setMsg(res.error || "Database reset");
+      onAction?.();
+    } finally { setResetting(false); }
+  };
+  const disrupt = async () => {
+    if (!disruption.target.trim() || !disruption.event.trim()) return;
+    setDisrupting(true);
+    try {
+      const res = await post("/api/simulate/disruption", disruption);
+      setMsg(res.error || `Disruption injected: ${res.affected} shipments delayed`);
+      setShowDisrupt(false);
+      onAction?.();
+    } finally { setDisrupting(false); }
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      {icon && <span className="text-base">{icon}</span>}
-      <div>
-        <div className={`text-xl font-bold ${color}`}>{value}</div>
-        <div className="text-xs text-gray-500">{label}</div>
+    <div className="border-t border-gray-800 bg-gray-950 px-6 py-2.5 flex flex-col gap-2">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs text-gray-600 font-semibold uppercase tracking-wide">Simulation</span>
+        <Btn onClick={mock} disabled={mocking} color="blue" className="text-xs !px-3 !py-1.5">
+          {mocking ? <Spinner size="w-3 h-3" /> : "+ Mock Orders (5)"}
+        </Btn>
+        <Btn onClick={advance} disabled={advancing} color="gray" className="text-xs !px-3 !py-1.5">
+          {advancing ? <Spinner size="w-3 h-3" /> : "Advance Queue"}
+        </Btn>
+        <Btn onClick={() => setShowDisrupt(!showDisrupt)} color="red" className="text-xs !px-3 !py-1.5">
+          ⚠ Simulate Disruption
+        </Btn>
+        <Btn onClick={reset} disabled={resetting} color="gray" className="text-xs !px-3 !py-1.5">
+          {resetting ? <Spinner size="w-3 h-3" /> : "Reset DB"}
+        </Btn>
+        <a href="/shop" target="_blank" className="text-xs text-blue-400 hover:text-blue-300 ml-auto">Open customer shop ↗</a>
+        {msg && <span className="text-xs text-gray-500">{msg}</span>}
       </div>
-    </div>
-  );
-}
-
-// ─── Transition Overlay ──────────────────────────────────────────────────────
-function TransitionOverlay({ onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t); }, [onDone]);
-  return (
-    <div className="fixed inset-0 z-50 bg-gray-950 bg-opacity-95 flex items-center justify-center">
-      <div className="text-center success-pop">
-        <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-2xl font-bold text-white mb-2">Onboarding Complete!</h2>
-        <p className="text-blue-400 text-lg">Starting operations monitoring...</p>
-        <div className="mt-6 flex justify-center gap-1">
-          {[0,1,2].map(i => (
-            <div key={i} className="w-2 h-2 bg-blue-500 rounded-full"
-              style={{ animation: `blink 1s ${i*0.3}s ease-in-out infinite` }} />
-          ))}
+      {showDisrupt && (
+        <div className="flex items-end gap-2 flex-wrap fade-in-up border-t border-gray-800 pt-2">
+          <Select
+            label="Scope"
+            value={disruption.scope}
+            onChange={v => setDisruption({...disruption, scope: v})}
+            options={[{value:"fc",label:"Fulfillment Center"},{value:"carrier",label:"Carrier"},{value:"region",label:"Region"}]}
+            className="w-40"
+          />
+          <Input
+            label={disruption.scope === "fc" ? "FC code (e.g. LAX)" : disruption.scope === "carrier" ? "Carrier name" : "Region (east/central/west) or state"}
+            value={disruption.target}
+            onChange={v => setDisruption({...disruption, target: v})}
+            className="w-56"
+          />
+          <Input
+            label="Event description"
+            value={disruption.event}
+            onChange={v => setDisruption({...disruption, event: v})}
+            placeholder="wildfire smoke grounding flights"
+            className="flex-1 min-w-[220px]"
+          />
+          <Btn onClick={disrupt} disabled={disrupting} color="red" className="text-xs !px-3 !py-1.5">
+            {disrupting ? <Spinner size="w-3 h-3" /> : "Inject"}
+          </Btn>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-// ─── App Root ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════════════════════════════════════════
+
+function HeaderStats({ refreshKey }) {
+  const [stats, setStats] = useState({});
+  const load = () => api("/api/orders/stats").then(d => setStats(d.by_status||{}));
+  useEffect(() => { load(); }, [refreshKey]);
+  useEffect(() => {
+    const iv = setInterval(() => load(), 8000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const total = Object.values(stats).reduce((a,b)=>a+b,0);
+  const q = (stats.queued||0)+(stats.picking||0)+(stats.packing||0);
+  const ex = (stats.exception||0)+(stats.backorder||0);
+  return (
+    <div className="flex gap-4 text-xs">
+      <span className="text-gray-500">{total} orders</span>
+      <span className="text-cyan-400">{q} in queue</span>
+      {ex > 0 && <span className="text-red-400">{ex} issues</span>}
+      <span className="text-green-400">{stats.delivered||0} delivered</span>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TABS = [
+  { id: "brands", label: "Brands" },
+  { id: "operations", label: "Operations" },
+  { id: "command", label: "Command Center" },
+  { id: "activity", label: "Activity Log" },
+];
+
 function App() {
-  const [activeTab, setActiveTab] = useState("onboarding");
-  const [showTransition, setShowTransition] = useState(false);
-  const [autoRun, setAutoRun] = useState(false);
-
-  const handleOnboardingComplete = () => {
-    setShowTransition(true);
-  };
-
-  const handleTransitionDone = () => {
-    setShowTransition(false);
-    setActiveTab("liveops");
-    setAutoRun(true);
-  };
+  const [tab, setTab] = useState("brands");
+  const [rk, setRk] = useState(0);
+  const bump = () => setRk(k => k + 1);
 
   return (
     <div className="min-h-screen flex flex-col text-white" style={{ background: "#0f1117" }}>
-      {showTransition && <TransitionOverlay onDone={handleTransitionDone} />}
-
-      {/* Header */}
       <header className="border-b border-gray-800 bg-gray-950 bg-opacity-80 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-full mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🚚</span>
+            <span className="text-xl">🚚</span>
             <div>
-              <div className="font-bold text-white text-lg leading-none">FulfillAI</div>
-              <div className="text-xs text-gray-500 leading-none mt-0.5">Fulfillment Operations Intelligence</div>
+              <div className="font-bold text-white text-base leading-none">FulfillAI Operations</div>
+              <div className="text-[10px] text-gray-500 leading-none mt-0.5">Autonomous fulfillment ops · AI monitor active</div>
             </div>
           </div>
-          <nav className="flex items-center border-b border-transparent gap-1">
-            <button
-              onClick={() => setActiveTab("onboarding")}
-              className={`tab-btn ${activeTab === "onboarding" ? "active" : ""}`}
-            >
-              Onboarding
-            </button>
-            <button
-              onClick={() => setActiveTab("liveops")}
-              className={`tab-btn ${activeTab === "liveops" ? "active" : ""}`}
-            >
-              Live Ops
-            </button>
+          <nav className="flex items-center gap-0.5">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} className={`tab-btn ${tab === t.id ? "active" : ""}`}>{t.label}</button>
+            ))}
           </nav>
+          <HeaderStats refreshKey={rk} />
         </div>
       </header>
 
-      {/* Main */}
-      <main className="flex-1 max-w-7xl w-full mx-auto flex flex-col" style={{ height: "calc(100vh - 64px)" }}>
-        {activeTab === "onboarding"
-          ? <OnboardingView onComplete={handleOnboardingComplete} />
-          : <LiveOpsView autoRun={autoRun} />}
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {tab === "brands" && <BrandsView />}
+        {tab === "operations" && <OperationsView refreshKey={rk} />}
+        {tab === "command" && <CommandCenterView refreshKey={rk} onAction={bump} />}
+        {tab === "activity" && <ActivityView key={rk} />}
       </main>
+
+      <SimBar onAction={bump} />
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
 </script>
 </body>
 </html>
