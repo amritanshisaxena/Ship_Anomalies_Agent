@@ -188,10 +188,18 @@ async def scan_now():
 # Anomaly-level review actions
 # ─────────────────────────────────────────────────────────────────────────
 
+HOLD_ANOMALY_TYPES = ("proactive_route_risk", "split_shipment_review", "backorder_review")
+
+
 @router.post("/anomalies/{anomaly_id}/approve")
 def approve_anomaly(anomaly_id: int, db: Session = Depends(get_db)):
-    """Approve every draft notification and mark them all sent. Anomaly → resolved."""
-    from models import Anomaly, Notification
+    """Approve every draft notification and mark them all sent. Anomaly → resolved.
+
+    For hold-gating anomaly types (proactive_route_risk, split_shipment_review,
+    backorder_review), also releases the affected orders so the auto-advance
+    loop can pick them up on its next tick.
+    """
+    from models import Anomaly, Notification, Order
 
     anomaly = db.query(Anomaly).get(anomaly_id)
     if not anomaly:
@@ -217,6 +225,22 @@ def approve_anomaly(anomaly_id: int, db: Session = Depends(get_db)):
     anomaly.review_action = "approved"
     anomaly.reviewed_at = now
 
+    # Release any held orders gated on this anomaly. Only releases orders
+    # whose hold_anomaly_id actually points to us — never blindly clears
+    # holds on unrelated orders.
+    released_orders: list[str] = []
+    if anomaly.anomaly_type in HOLD_ANOMALY_TYPES:
+        for oid in anomaly.affected_order_ids or []:
+            o = db.query(Order).get(oid)
+            if o and o.hold_anomaly_id == anomaly.id:
+                o.on_hold = False
+                o.hold_reason = None
+                o.hold_anomaly_id = None
+                # Backorders never reach "queued" — they need manual reprocess.
+                # Split and proactive-risk holds were parked at queued, so
+                # clearing on_hold is enough for the advance loop to pick them up.
+                released_orders.append(o.order_number)
+
     log_agent_action(
         db,
         agent_name="ops_review",
@@ -224,8 +248,15 @@ def approve_anomaly(anomaly_id: int, db: Session = Depends(get_db)):
         entity_type="anomaly",
         entity_id=anomaly_id,
         input_summary=f"{anomaly.scope_label}: {len(drafts)} drafts",
-        output_summary=f"Approved — {sent_count} notifications sent to customers",
-        details={"sent": sent_count, "scope": anomaly.scope_label},
+        output_summary=(
+            f"Approved — {sent_count} notifications sent"
+            + (f", {len(released_orders)} order(s) released" if released_orders else "")
+        ),
+        details={
+            "sent": sent_count,
+            "scope": anomaly.scope_label,
+            "released_orders": released_orders,
+        },
         severity="info",
     )
     db.commit()
@@ -235,13 +266,20 @@ def approve_anomaly(anomaly_id: int, db: Session = Depends(get_db)):
         "anomaly_id": anomaly_id,
         "status": "resolved",
         "sent": sent_count,
+        "released_orders": released_orders,
     }
 
 
 @router.post("/anomalies/{anomaly_id}/reject")
 def reject_anomaly(anomaly_id: int, payload: dict = Body(default={}), db: Session = Depends(get_db)):
-    """Reject the entire anomaly. Nothing is sent to customers."""
-    from models import Anomaly, Notification
+    """Reject the entire anomaly. Nothing is sent to customers.
+
+    For hold-gating anomaly types, rejection is interpreted as "this is
+    genuinely a problem, pull the order from the pipeline for manual
+    handling" — the affected orders are flipped to 'exception' status and
+    left on_hold=True so the auto-advance loop never touches them.
+    """
+    from models import Anomaly, Notification, Order
 
     anomaly = db.query(Anomaly).get(anomaly_id)
     if not anomaly:
@@ -267,6 +305,16 @@ def reject_anomaly(anomaly_id: int, payload: dict = Body(default={}), db: Sessio
     if reason:
         anomaly.ops_context = (anomaly.ops_context or "") + f"\n[Rejected] {reason}"
 
+    # Flip gated orders to exception so ops can handle them offline.
+    excepted_orders: list[str] = []
+    if anomaly.anomaly_type in HOLD_ANOMALY_TYPES:
+        for oid in anomaly.affected_order_ids or []:
+            o = db.query(Order).get(oid)
+            if o and o.hold_anomaly_id == anomaly.id:
+                o.status = "exception"
+                # Leave on_hold=True so the advance loop never picks it up
+                excepted_orders.append(o.order_number)
+
     log_agent_action(
         db,
         agent_name="ops_review",
@@ -274,13 +322,25 @@ def reject_anomaly(anomaly_id: int, payload: dict = Body(default={}), db: Sessio
         entity_type="anomaly",
         entity_id=anomaly_id,
         input_summary=f"{anomaly.scope_label}: {len(drafts)} drafts discarded",
-        output_summary=f"Rejected — no customer contact{' (' + reason + ')' if reason else ''}",
-        details={"reason": reason, "discarded": len(drafts)},
+        output_summary=(
+            f"Rejected — no customer contact{' (' + reason + ')' if reason else ''}"
+            + (f", {len(excepted_orders)} order(s) → exception" if excepted_orders else "")
+        ),
+        details={
+            "reason": reason,
+            "discarded": len(drafts),
+            "excepted_orders": excepted_orders,
+        },
         severity="warning",
     )
     db.commit()
 
-    return {"ok": True, "anomaly_id": anomaly_id, "status": "rejected"}
+    return {
+        "ok": True,
+        "anomaly_id": anomaly_id,
+        "status": "rejected",
+        "excepted_orders": excepted_orders,
+    }
 
 
 @router.post("/anomalies/{anomaly_id}/re-investigate")

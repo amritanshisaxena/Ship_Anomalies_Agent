@@ -94,6 +94,8 @@ def list_orders(status: str = None, brand_id: int = None, db: Session = Depends(
             "shipments": shipment_list,
             "total": sum(i.quantity * (i.unit_price or 0) for i in items),
             "notifications": notif_list,
+            "on_hold": bool(o.on_hold),
+            "hold_reason": o.hold_reason,
         })
 
     return {"orders": result}
@@ -215,4 +217,9 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
         "total": sum(i.quantity * (i.unit_price or 0) for i in items),
         "agent_trace": trace_list,
         "notifications": notifications_list,
+        "narrator_explanation": order.narrator_explanation,
+        "narrator_is_fallback": bool(order.narrator_is_fallback),
+        "on_hold": bool(order.on_hold),
+        "hold_reason": order.hold_reason,
+        "hold_anomaly_id": order.hold_anomaly_id,
     }

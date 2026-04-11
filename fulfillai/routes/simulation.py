@@ -1,13 +1,11 @@
-"""Simulation routes — mock orders, advance queue, reset DB, disruption events."""
+"""Simulation routes — mock orders, force-advance queue (debug), reset DB."""
 
 import random
-from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from agents.base import log_agent_action
 from agents.fulfillment import advance_queue, process_order
 from database import ENGINE, SessionLocal, get_db, init_db
 from models import Base
@@ -16,7 +14,7 @@ router = APIRouter(prefix="/api/simulate", tags=["simulation"])
 
 
 @router.post("/mock-orders")
-def create_mock_orders(count: int = 5, brand_id: int = None, db: Session = Depends(get_db)):
+async def create_mock_orders(count: int = 5, brand_id: int = None, db: Session = Depends(get_db)):
     """Generate random orders for a brand and process them through the pipeline."""
     from models import Brand, Order, OrderItem, Product
 
@@ -81,8 +79,8 @@ def create_mock_orders(count: int = 5, brand_id: int = None, db: Session = Depen
 
         db.commit()
 
-        # Process through pipeline
-        pipeline_result = process_order(db, order.id)
+        # Process through pipeline (async — runs narrator + proactive risk)
+        pipeline_result = await process_order(db, order.id)
 
         created.append({
             "order_id": order.id,
@@ -99,8 +97,13 @@ def create_mock_orders(count: int = 5, brand_id: int = None, db: Session = Depen
 
 @router.post("/advance-queue")
 def advance(count: int = 5, db: Session = Depends(get_db)):
-    """Advance top N orders through pick → pack → ship by priority."""
-    results = advance_queue(db, count)
+    """Force-advance top N orders through pick → pack → ship by priority.
+
+    Debug/demo button only — normal order flow is handled by the auto-advance
+    background loop in agents/background.py. This endpoint does NOT skip
+    held orders, so ops can use it to verify hold behavior.
+    """
+    results = advance_queue(db, count, skip_holds=False)
     return {"advanced": len(results), "details": results}
 
 
@@ -118,108 +121,3 @@ def reset_database():
         session.close()
 
     return {"status": "reset", "message": "Database reset — FCs and carriers seeded, everything else empty"}
-
-
-@router.post("/disruption")
-def simulate_disruption(payload: dict = Body(...), db: Session = Depends(get_db)):
-    """
-    Inject a delay event affecting shipments by FC, carrier, or region.
-    Body: {scope: 'fc'|'carrier'|'region', target: str, event: str}
-      - fc target: FC code (e.g. 'LAX') or id
-      - carrier target: carrier name or id
-      - region target: 'east'|'central'|'west' or US state code
-      - event: free-form label used for the shipment event message
-    """
-    from models import Carrier, FulfillmentCenter, Order, Shipment, ShipmentEvent
-
-    scope = (payload.get("scope") or "").lower()
-    target = str(payload.get("target") or "").strip()
-    event = (payload.get("event") or "Unknown disruption").strip()
-
-    if scope not in ("fc", "carrier", "region") or not target:
-        return {"error": "scope must be fc|carrier|region and target is required"}
-
-    from agents.monitor import _STATE_REGION
-
-    query = db.query(Shipment).filter(Shipment.status.notin_(["shipped", "delivered"]))
-    scope_label = target
-
-    if scope == "fc":
-        fc = None
-        if target.isdigit():
-            fc = db.query(FulfillmentCenter).get(int(target))
-        if not fc:
-            fc = db.query(FulfillmentCenter).filter(
-                func.lower(FulfillmentCenter.code) == target.lower()
-            ).first()
-        if not fc:
-            return {"error": f"FC '{target}' not found"}
-        scope_label = fc.code
-        query = query.filter(Shipment.fulfillment_center_id == fc.id)
-
-    elif scope == "carrier":
-        carrier = None
-        if target.isdigit():
-            carrier = db.query(Carrier).get(int(target))
-        if not carrier:
-            carrier = db.query(Carrier).filter(
-                func.lower(Carrier.name) == target.lower()
-            ).first()
-        if not carrier:
-            return {"error": f"Carrier '{target}' not found"}
-        scope_label = carrier.name
-        query = query.filter(Shipment.carrier_id == carrier.id)
-
-    elif scope == "region":
-        region = target.lower()
-        if len(target) == 2:
-            region = _STATE_REGION.get(target.upper(), target.lower())
-        matching_states = [s for s, r in _STATE_REGION.items() if r == region]
-        if not matching_states:
-            return {"error": f"Region '{target}' not recognized"}
-        scope_label = f"{region} region"
-        order_ids = [
-            o.id for o in db.query(Order).filter(Order.recipient_state.in_(matching_states)).all()
-        ]
-        if not order_ids:
-            return {"affected": 0, "message": f"No active orders destined for {scope_label}"}
-        query = query.filter(Shipment.order_id.in_(order_ids))
-
-    shipments = query.all()
-    if not shipments:
-        return {"affected": 0, "message": f"No active shipments match {scope}={scope_label}"}
-
-    now = datetime.now(timezone.utc)
-    past = now - timedelta(days=2)
-
-    for s in shipments:
-        s.estimated_delivery = past
-        db.add(
-            ShipmentEvent(
-                shipment_id=s.id,
-                status="delayed",
-                message=f"Delayed — {event}",
-                location=scope_label,
-            )
-        )
-
-    log_agent_action(
-        db,
-        agent_name="simulation",
-        action_type="disruption_injected",
-        entity_type="simulation",
-        entity_id=0,
-        input_summary=f"scope={scope} target={scope_label} event={event}",
-        output_summary=f"{len(shipments)} shipments marked delayed",
-        details={"scope": scope, "target": scope_label, "event": event, "count": len(shipments)},
-        severity="warning",
-    )
-    db.commit()
-
-    return {
-        "affected": len(shipments),
-        "scope": scope,
-        "target": scope_label,
-        "event": event,
-        "message": f"Injected disruption: {len(shipments)} shipments delayed ({scope_label} — {event})",
-    }

@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from agents.background import anomaly_monitor_loop
+from agents.background import anomaly_monitor_loop, queue_advance_loop
 from database import SessionLocal, init_db
 from routes.activity import router as activity_router
 from routes.anomalies import router as anomalies_router
@@ -63,6 +63,12 @@ async def on_startup():
     # investigates with Tavily grounding, and drafts customer notifications
     # — all without human intervention. Ops only reviews.
     asyncio.create_task(anomaly_monitor_loop())
+
+    # Launch the auto-advance loop. It moves orders through
+    # queued → picking → packing → shipped every 30s, skipping any order
+    # that is on hold (split shipment, backorder, proactive route risk).
+    # Held orders resume only after ops approves the gating anomaly.
+    asyncio.create_task(queue_advance_loop())
 
     print("FulfillAI running at http://localhost:8000")
     print("  Ops portal:      http://localhost:8000/")

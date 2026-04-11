@@ -10,9 +10,9 @@ router = APIRouter(prefix="/api/fulfillment", tags=["fulfillment"])
 
 
 @router.post("/process/{order_id}")
-def process(order_id: int, db: Session = Depends(get_db)):
+async def process(order_id: int, db: Session = Depends(get_db)):
     """Run the full 6-step agent pipeline on a pending order."""
-    return process_order(db, order_id)
+    return await process_order(db, order_id)
 
 
 @router.post("/advance-queue")

@@ -59,9 +59,16 @@ _TIER_MAX_DAYS = {"standard": 99, "express": 3, "overnight": 1}
 QUEUE_STAGES = ["queued", "picking", "packing", "shipped"]
 
 
-def process_order(db: Session, order_id: int) -> dict:
-    """Run the full 6-step pipeline for an order. Returns a summary of all decisions."""
-    from models import Order
+async def process_order(db: Session, order_id: int) -> dict:
+    """Run the full 6-step pipeline for an order. Returns a summary of all decisions.
+
+    After the deterministic steps, this also runs the AI narrator and the
+    proactive route-risk agent. Both are fail-safe — any exception is caught
+    and the order still finalizes normally.
+    """
+    from models import Anomaly, Order
+    from agents.narrator import narrate_order_decisions
+    from agents.proactive_risk import assess_route_risk
 
     order = db.query(Order).get(order_id)
     if not order:
@@ -78,9 +85,49 @@ def process_order(db: Session, order_id: int) -> dict:
     if step1.get("backorder"):
         order.status = "backorder"
         order.priority_score = -100
+        # Hold the backorder so the auto-advance loop ignores it and ops can review
+        order.on_hold = True
+        order.hold_reason = "backorder"
+
+        # Minimal anomaly (no Tavily, no LLM) so Command Center surfaces this
+        backorder_anomaly = Anomaly(
+            anomaly_type="backorder_review",
+            scope_type="order",
+            scope_id=order.id,
+            scope_label=order.order_number,
+            severity="high",
+            affected_order_ids=[order.id],
+            affected_count=1,
+            status="pending_review",
+            detection_summary=f"Order {order.order_number} is on backorder — no FC can fulfill any items",
+            detection_details={"reason": "all_items_out_of_stock"},
+            ai_likely_cause="Insufficient inventory network-wide",
+            ai_detailed_reasoning=(
+                "Step 1 of the fulfillment pipeline found that at least one line item "
+                "has zero stock at every fulfillment center."
+            ),
+            ai_confidence="high",
+            ai_recommended_action="Contact customer, offer ETA or refund",
+            ai_customer_impact="Order cannot ship until inventory is restocked",
+        )
+        db.add(backorder_anomaly)
+        db.flush()
+        order.hold_anomaly_id = backorder_anomaly.id
+
         db.commit()
         _log_step(db, 6, order, "finalize", f"Order {order.order_number} → backorder (out of stock)",
-                  {"reason": "No FC can fulfill any items"})
+                  {"reason": "No FC can fulfill any items", "anomaly_id": backorder_anomaly.id})
+
+        # Still run the narrator so the UI gets an explanation card on backorders
+        try:
+            explanation, is_fallback = await narrate_order_decisions(db, order.id)
+            order.narrator_explanation = explanation
+            order.narrator_is_fallback = is_fallback
+            db.commit()
+        except Exception as exc:
+            print(f"[pipeline] narrator failed on backorder {order.order_number}: {exc}")
+            db.rollback()
+
         pipeline_result["final_status"] = "backorder"
         return pipeline_result
 
@@ -104,9 +151,71 @@ def process_order(db: Session, order_id: int) -> dict:
     step6 = _step6_finalize(db, order, step2, step3)
     pipeline_result["steps"].append(step6)
 
+    # ── Step 7: Narrator (AI explains the deterministic routing) ────────────
+    try:
+        explanation, is_fallback = await narrate_order_decisions(db, order.id)
+        order.narrator_explanation = explanation
+        order.narrator_is_fallback = is_fallback
+        db.commit()
+    except Exception as exc:
+        print(f"[pipeline] narrator failed for {order.order_number}: {exc}")
+        db.rollback()
+
+    # ── Split shipment hold (deterministic, no LLM) ─────────────────────────
+    if len(step2.get("selected_fcs", [])) > 1:
+        try:
+            split_anomaly = Anomaly(
+                anomaly_type="split_shipment_review",
+                scope_type="order",
+                scope_id=order.id,
+                scope_label=order.order_number,
+                severity="medium",
+                affected_order_ids=[order.id],
+                affected_count=1,
+                status="pending_review",
+                detection_summary=(
+                    f"Order {order.order_number} was split across "
+                    f"{len(step2['selected_fcs'])} fulfillment centers"
+                ),
+                detection_details={
+                    "fc_codes": [fc.get("fc_code") for fc in step2["selected_fcs"]],
+                },
+                ai_likely_cause="No single FC had full stock for this order",
+                ai_detailed_reasoning=(
+                    "The FC selection step could not find one fulfillment center with every "
+                    "line item in stock, so the order will ship as multiple parcels. This is "
+                    "more expensive and may arrive in pieces."
+                ),
+                ai_confidence="high",
+                ai_recommended_action="Confirm split is acceptable, or rebalance inventory and reprocess",
+                ai_customer_impact="Customer may receive multiple packages at different times",
+            )
+            db.add(split_anomaly)
+            db.flush()
+
+            order.on_hold = True
+            order.hold_reason = "split"
+            order.hold_anomaly_id = split_anomaly.id
+            db.commit()
+        except Exception as exc:
+            print(f"[pipeline] split-hold failed for {order.order_number}: {exc}")
+            db.rollback()
+
+    # ── Proactive route-risk assessment (Tavily + GPT-4o) ───────────────────
+    # Skipped if the order is already on hold (e.g. split shipment) — no need
+    # to double-flag. A single hold is enough to park the order.
+    if not order.on_hold:
+        try:
+            await assess_route_risk(db, order.id)
+        except Exception as exc:
+            print(f"[pipeline] proactive risk failed for {order.order_number}: {exc}")
+            db.rollback()
+
     pipeline_result["final_status"] = order.status
     pipeline_result["priority_score"] = order.priority_score
     pipeline_result["queue_position"] = order.queue_position
+    pipeline_result["on_hold"] = order.on_hold
+    pipeline_result["hold_reason"] = order.hold_reason
 
     return pipeline_result
 
@@ -558,20 +667,25 @@ def _step6_finalize(db: Session, order, step2: dict, step3: dict) -> dict:
 # WAREHOUSE QUEUE ADVANCEMENT
 # ═════════════════════════════════════════════════════════════════════════════
 
-def advance_queue(db: Session, count: int = 5) -> list:
-    """Advance the top N queued orders by priority through pick → pack → ship."""
+def advance_queue(db: Session, count: int = 5, skip_holds: bool = False) -> list:
+    """Advance the top N queued orders by priority through pick → pack → ship.
+
+    When skip_holds=True, orders with on_hold=True are excluded. The background
+    auto-advance loop uses skip_holds=True; the manual "Force Advance" button
+    uses skip_holds=False so ops can inspect how holds behave.
+    """
     from models import Order, Shipment, ShipmentEvent
 
     results = []
 
     # Get orders in queue, sorted by priority (highest first)
-    queued_orders = (
+    q = (
         db.query(Order)
         .filter(Order.status.in_(["queued", "picking", "packing"]))
-        .order_by(Order.priority_score.desc())
-        .limit(count)
-        .all()
     )
+    if skip_holds:
+        q = q.filter(Order.on_hold == False)  # noqa: E712 — SQL boolean comparison
+    queued_orders = q.order_by(Order.priority_score.desc()).limit(count).all()
 
     transitions = {
         "queued": "picking",
@@ -624,6 +738,15 @@ def advance_queue(db: Session, count: int = 5) -> list:
 
     db.commit()
     return results
+
+
+def advance_queue_skip_holds(db: Session, count: int = 10) -> list:
+    """Thin wrapper used by the background auto-advance loop.
+
+    Only advances orders that are NOT on hold — held orders wait for ops to
+    approve or reject in the Command Center before resuming the pipeline.
+    """
+    return advance_queue(db, count=count, skip_holds=True)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

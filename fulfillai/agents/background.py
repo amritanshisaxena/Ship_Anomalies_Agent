@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import traceback
 
+from agents.fulfillment import advance_queue_skip_holds
 from agents.investigator import investigate_anomaly
 from agents.monitor import run_monitor_scan
 from agents.notifier import draft_notifications_for_anomaly
@@ -25,6 +26,12 @@ from database import SessionLocal
 
 SCAN_INTERVAL_SECONDS = 60
 STARTUP_DELAY_SECONDS = 5
+
+# How often the auto-advance loop moves orders through queued → picking →
+# packing → shipped. Held orders are skipped; they wait for ops to approve
+# or reject them in the Command Center.
+QUEUE_ADVANCE_INTERVAL_SECONDS = 30
+QUEUE_ADVANCE_BATCH_SIZE = 10
 
 
 async def run_one_cycle() -> dict:
@@ -74,3 +81,29 @@ async def anomaly_monitor_loop():
             print(f"[monitor-loop] scan error: {exc}")
             traceback.print_exc()
         await asyncio.sleep(SCAN_INTERVAL_SECONDS)
+
+
+async def queue_advance_loop():
+    """Forever-loop that auto-advances orders through the warehouse stages.
+
+    Held orders (on_hold=True) are skipped. They only resume after ops
+    approves the gating anomaly in the Command Center.
+    """
+    await asyncio.sleep(STARTUP_DELAY_SECONDS + 3)
+    print(
+        f"[advance-loop] started, advancing {QUEUE_ADVANCE_BATCH_SIZE} orders "
+        f"every {QUEUE_ADVANCE_INTERVAL_SECONDS}s (holds skipped)"
+    )
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                moved = advance_queue_skip_holds(db, count=QUEUE_ADVANCE_BATCH_SIZE)
+                if moved:
+                    print(f"[advance-loop] moved {len(moved)} order(s)")
+            finally:
+                db.close()
+        except Exception as exc:
+            print(f"[advance-loop] error: {exc}")
+            traceback.print_exc()
+        await asyncio.sleep(QUEUE_ADVANCE_INTERVAL_SECONDS)

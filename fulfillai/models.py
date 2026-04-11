@@ -1,3 +1,6 @@
+# NOTE: This project has no Alembic. When columns are added or removed here,
+# the migration path is: stop the server, delete fulfillai.db, restart.
+# seed_if_empty() in seed.py will repopulate brands / FCs / carriers.
 from datetime import datetime, timezone
 
 from sqlalchemy import (
@@ -112,6 +115,19 @@ class Order(Base):
     priority_score = Column(Integer, default=0)
     queue_position = Column(Integer)
 
+    # Hold flags: orders with on_hold=True are skipped by the auto-advance loop
+    # until ops releases them via the Command Center. hold_anomaly_id links to
+    # the Anomaly row that gates the hold.
+    on_hold = Column(Boolean, default=False, nullable=False)
+    hold_reason = Column(String, nullable=True)  # split | backorder | proactive_route_risk
+    hold_anomaly_id = Column(Integer, ForeignKey("anomalies.id"), nullable=True)
+
+    # Narrator agent writes a one-sentence natural-language explanation of the
+    # deterministic routing decision so the "Agent Decision Trace" in the UI
+    # isn't misleading.
+    narrator_explanation = Column(Text, nullable=True)
+    narrator_is_fallback = Column(Boolean, default=False)
+
     created_at = Column(DateTime, default=_utcnow)
 
     brand = relationship("Brand", back_populates="orders")
@@ -187,7 +203,9 @@ class Anomaly(Base):
     __tablename__ = "anomalies"
 
     id = Column(Integer, primary_key=True)
-    anomaly_type = Column(String)       # 'cluster_delay', 'single_stuck', 'carrier_issue', 'fc_issue'
+    anomaly_type = Column(String)
+    # 'cluster_delay', 'single_stuck', 'carrier_issue', 'fc_issue',
+    # 'proactive_route_risk', 'split_shipment_review', 'backorder_review'
     scope_type = Column(String)         # 'fc', 'carrier', 'region', 'order'
     scope_id = Column(Integer, nullable=True)
     scope_label = Column(String)        # 'FC-LAX', 'FedEx', 'west region', 'ORD-1042'
@@ -240,3 +258,20 @@ class Notification(Base):
     sent_at = Column(DateTime, nullable=True)
 
     anomaly = relationship("Anomaly", back_populates="notifications")
+
+
+class TavilyCacheEntry(Base):
+    """Caches Tavily search results for the proactive route-risk agent.
+
+    Keyed by (destination / carrier / origin) so that a burst of orders to
+    the same route does not hammer Tavily. TTL enforced in code — see
+    CACHE_TTL_SECONDS in agents/tavily_client.py.
+    """
+
+    __tablename__ = "tavily_cache"
+
+    id = Column(Integer, primary_key=True)
+    cache_key = Column(String, nullable=False, unique=True, index=True)
+    query = Column(String, nullable=False)
+    results = Column(JSON, nullable=False)  # list[{title, url, content, ...}]
+    fetched_at = Column(DateTime, default=_utcnow, nullable=False)

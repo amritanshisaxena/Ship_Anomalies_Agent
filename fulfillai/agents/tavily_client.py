@@ -13,7 +13,7 @@ investigator records a low-confidence diagnosis rather than inventing a cause.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -21,6 +21,11 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 TAVILY_URL = "https://api.tavily.com/search"
 REQUEST_TIMEOUT = 12.0
 MAX_SNIPPET_CHARS = 500
+
+# How long cached Tavily results stay fresh for the proactive route-risk agent.
+# 2 hours balances demo cost (avoid hammering Tavily on bursts of orders to the
+# same route) against weather/news freshness.
+CACHE_TTL_SECONDS = 7200
 
 
 async def tavily_search(query: str, max_results: int = 5) -> list[dict]:
@@ -108,3 +113,55 @@ def build_grounding_queries(anomaly, fc=None, carrier=None) -> list[str]:
             seen.add(q)
             final.append(q)
     return final
+
+
+async def get_or_fetch_tavily(db, cache_key: str, query: str, max_results: int = 5) -> list[dict]:
+    """
+    Cached Tavily lookup for the proactive route-risk agent.
+
+    Reads from tavily_cache table. If an entry exists and was fetched within
+    CACHE_TTL_SECONDS, returns the cached results. Otherwise calls
+    tavily_search() and upserts the row.
+
+    Never raises — returns [] on any failure so the caller can fall back to a
+    safe "no risk" decision.
+    """
+    from models import TavilyCacheEntry
+
+    try:
+        entry = db.query(TavilyCacheEntry).filter(TavilyCacheEntry.cache_key == cache_key).first()
+        if entry is not None:
+            fetched_at = entry.fetched_at
+            # SQLite returns naive datetimes; normalize for comparison
+            if fetched_at.tzinfo is None:
+                fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - fetched_at).total_seconds()
+            if age < CACHE_TTL_SECONDS:
+                print(f"[tavily-cache] HIT {cache_key} (age={int(age)}s)")
+                return entry.results or []
+            print(f"[tavily-cache] STALE {cache_key} (age={int(age)}s) — refetching")
+    except Exception as exc:
+        print(f"[tavily-cache] read failed for {cache_key!r}: {exc}")
+        entry = None
+
+    results = await tavily_search(query, max_results=max_results)
+
+    try:
+        now = datetime.now(timezone.utc)
+        if entry is None:
+            db.add(TavilyCacheEntry(
+                cache_key=cache_key,
+                query=query,
+                results=results,
+                fetched_at=now,
+            ))
+        else:
+            entry.query = query
+            entry.results = results
+            entry.fetched_at = now
+        db.commit()
+    except Exception as exc:
+        print(f"[tavily-cache] write failed for {cache_key!r}: {exc}")
+        db.rollback()
+
+    return results

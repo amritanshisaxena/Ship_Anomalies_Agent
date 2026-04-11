@@ -64,7 +64,7 @@ def get_catalog(brand_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/checkout")
-def checkout(req: CheckoutRequest, db: Session = Depends(get_db)):
+async def checkout(req: CheckoutRequest, db: Session = Depends(get_db)):
     """Place an order and immediately run it through the agent pipeline."""
     from models import Brand, Order, OrderItem, Product
     from agents.fulfillment import process_order
@@ -103,7 +103,7 @@ def checkout(req: CheckoutRequest, db: Session = Depends(get_db)):
     db.commit()
 
     # Run the agent pipeline immediately
-    pipeline_result = process_order(db, order.id)
+    pipeline_result = await process_order(db, order.id)
 
     return {
         "order_id": order.id,
