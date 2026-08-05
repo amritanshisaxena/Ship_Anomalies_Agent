@@ -1,5 +1,10 @@
 __pycache__/
 *.pyc
 .env
+.venv/
+venv/
 fulfillai/fulfillai.db
 fulfillai/agent_log.json
+
+# Claude Code session transcripts
+fulfillai/*.txt
